@@ -12,6 +12,9 @@ namespace TouchpadOnGamepadDisabler.Gamepad
         // Define events for button presses
         public event EventHandler<GamepadEventArgs>? ButtonsPressed;
 
+        // New event for axis changes
+        public event EventHandler<GamepadAxisEventArgs> AxisChanged;
+
         // Event for controller disconnect
         public event EventHandler? ControllerDisconnected;
 
@@ -42,6 +45,7 @@ namespace TouchpadOnGamepadDisabler.Gamepad
                 // Get current state of the controller
                 var state = controller.GetState();
                 HandleButtonPresses(state.Gamepad);
+                HandleAxisChanges(state.Gamepad);
             }
             else
             {
@@ -105,6 +109,56 @@ namespace TouchpadOnGamepadDisabler.Gamepad
             if (pressedButtons != GamepadButtons.None)
             {
                 ButtonsPressed?.Invoke(this, new GamepadEventArgs(pressedButtons));
+            }
+        }
+
+        // Axis values to track changes
+        private short prevLeftThumbX;
+        private short prevLeftThumbY;
+        private short prevRightThumbX;
+        private short prevRightThumbY;
+        private byte prevLeftTrigger;
+        private byte prevRightTrigger;
+
+        // Detect and raise event when an axis changes (left/right sticks or triggers)
+        private void HandleAxisChanges(SharpDX.XInput.Gamepad gamepad)
+        {
+            float NormalizeAxis(short value)
+            {
+                return Math.Max(-1, Math.Min(1, value / 32767f));
+            }
+
+            // Normalize trigger values from [0, 255] to [0, 1]
+            float NormalizeTrigger(byte value)
+            {
+                return value / 255f;
+            }
+
+            bool axisChanged = false;
+
+            // Compare current axis values to previous ones
+            if (gamepad.LeftThumbX != prevLeftThumbX || gamepad.LeftThumbY != prevLeftThumbY ||
+                gamepad.RightThumbX != prevRightThumbX || gamepad.RightThumbY != prevRightThumbY ||
+                gamepad.LeftTrigger != prevLeftTrigger || gamepad.RightTrigger != prevRightTrigger)
+            {
+                axisChanged = true;
+            }
+
+            // If any axis has changed, raise the AxisChanged event
+            if (axisChanged)
+            {
+                AxisChanged?.Invoke(this, new GamepadAxisEventArgs(
+                    NormalizeAxis(gamepad.LeftThumbX), NormalizeAxis(gamepad.LeftThumbY),
+                    NormalizeAxis(gamepad.RightThumbX), NormalizeAxis(gamepad.RightThumbY),
+                    NormalizeTrigger(gamepad.LeftTrigger), NormalizeTrigger(gamepad.RightTrigger)));
+
+                // Update the previous axis values to the current ones
+                prevLeftThumbX = gamepad.LeftThumbX;
+                prevLeftThumbY = gamepad.LeftThumbY;
+                prevRightThumbX = gamepad.RightThumbX;
+                prevRightThumbY = gamepad.RightThumbY;
+                prevLeftTrigger = gamepad.LeftTrigger;
+                prevRightTrigger = gamepad.RightTrigger;
             }
         }
 

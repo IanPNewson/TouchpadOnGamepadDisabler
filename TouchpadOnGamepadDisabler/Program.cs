@@ -14,4 +14,5 @@ namespace TouchpadOnGamepadDisabler
             Application.Run(new HostForm());
         }
     }
+
 }
